@@ -51,6 +51,7 @@ export const createRenderer = (options: RendererOptions) => {
   }
 
   const render: RootRenderFunction = (vnode, container) => {
+    while (container.firstChild) container.removeChild(container.firstChild)
     const el = renderVNode(vnode)
     hostInsert(el, container)
   }
