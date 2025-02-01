@@ -1,8 +1,11 @@
 import { ReactiveEffect } from '../reactivity'
 import { VNode, VNodeChild } from './vnode'
 import { ComponentOptions } from './componentOptions'
+import { Props } from './componentProps'
 
 export type Component = ComponentOptions
+
+export type Data = Record<string, unknown>
 
 export interface ComponentInternalInstance {
   type: Component // 元となるユーザ定義のコンポーネント（旧 rootComponent）
@@ -13,6 +16,8 @@ export interface ComponentInternalInstance {
   render: InternalRenderFunction // 旧 componentRender
   update: () => void // 旧 updateComponent
   isMounted: boolean
+  propsOptions: Props
+  props: Data
 }
 
 export type InternalRenderFunction = {
@@ -33,6 +38,8 @@ export const createComponentInstance = (
     update: null!,
     render: null!,
     isMounted: null!,
+    propsOptions: type.props || {},
+    props: {},
   }
 
   return instance
