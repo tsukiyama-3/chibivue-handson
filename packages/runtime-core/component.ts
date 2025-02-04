@@ -1,50 +1,83 @@
-import { ReactiveEffect } from '../reactivity'
-import { VNode, VNodeChild } from './vnode'
-import { ComponentOptions } from './componentOptions'
-import { Props } from './componentProps'
+import type { ReactiveEffect } from '../reactivity'
 import { emit } from './componentEmits'
+import type { ComponentOptions } from './componentOptions'
+import { type Props, initProps } from './componentProps'
+import type { VNode, VNodeChild } from './vnode'
 
 export type Component = ComponentOptions
 
 export type Data = Record<string, unknown>
 
 export interface ComponentInternalInstance {
-  type: Component // 元となるユーザ定義のコンポーネント（旧 rootComponent）
+  type: Component
+
   vnode: VNode
-  subTree: VNode // 旧 n1
-  next: VNode | null // 旧 n2
-  effect: ReactiveEffect // 旧 effect
-  render: InternalRenderFunction // 旧 componentRender
-  update: () => void // 旧 updateComponent
-  isMounted: boolean
+  subTree: VNode
+  next: VNode | null
+  effect: ReactiveEffect
+  render: InternalRenderFunction
+  update: () => void
+
   propsOptions: Props
   props: Data
   emit: (event: string, ...args: any[]) => void
+
+  isMounted: boolean
 }
 
 export type InternalRenderFunction = {
   (): VNodeChild
 }
 
-export const createComponentInstance = (
+export function createComponentInstance(
   vnode: VNode
-): ComponentInternalInstance => {
+): ComponentInternalInstance {
   const type = vnode.type as Component
 
   const instance: ComponentInternalInstance = {
     type,
+
     vnode,
     next: null,
     effect: null!,
     subTree: null!,
     update: null!,
     render: null!,
-    isMounted: null!,
+
     propsOptions: type.props || {},
     props: {},
-    emit: null!,
+    emit: null!, // to be set immediately
+
+    isMounted: false,
   }
 
   instance.emit = emit.bind(null, instance)
   return instance
+}
+
+export const setupComponent = (instance: ComponentInternalInstance) => {
+  const { props } = instance.vnode
+  initProps(instance, props)
+
+  const component = instance.type as Component
+  if (component.setup) {
+    instance.render = component.setup(instance.props, {
+      emit: instance.emit,
+    }) as InternalRenderFunction
+  }
+
+  // ------------------------ ここ
+  if (compile && !component.render) {
+    const template = component.template ?? ''
+    if (template) {
+      instance.render = compile(template)
+    }
+  }
+}
+
+type CompileFunction = (template: string) => InternalRenderFunction
+let compile: CompileFunction | undefined
+
+export function registerRuntimeCompiler(_compile: any) {
+  compile = _compile
 }

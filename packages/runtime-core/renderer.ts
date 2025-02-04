@@ -1,12 +1,12 @@
 import { ReactiveEffect } from '../reactivity'
 import {
-  Component,
-  ComponentInternalInstance,
+  type Component,
+  type ComponentInternalInstance,
   createComponentInstance,
-  InternalRenderFunction,
+  setupComponent,
 } from './component'
-import { initProps, updateProps } from './componentProps'
-import { Text, VNode, createVNode, normalizeVNode } from './vnode'
+import { updateProps } from './componentProps'
+import { Text, type VNode, createVNode, normalizeVNode } from './vnode'
 
 export type RootRenderFunction<HostElement = RendererElement> = (
   vnode: Component,
@@ -56,83 +56,9 @@ export function createRenderer(options: RendererOptions) {
       processElement(n1, n2, container)
     } else if (typeof type === 'object') {
       processComponent(n1, n2, container)
-    }
-  }
-
-  const processComponent = (
-    n1: VNode | null,
-    n2: VNode,
-    container: RendererElement
-  ) => {
-    if (n1 === null) {
-      mountComponent(n2, container)
     } else {
-      updateComponent(n1, n2)
+      // do nothing
     }
-  }
-
-  const mountComponent = (initialVNode: VNode, container: RendererElement) => {
-    const instance: ComponentInternalInstance = (initialVNode.component =
-      createComponentInstance(initialVNode))
-
-    // init props
-    const { props } = instance.vnode
-    initProps(instance, props)
-
-    const component = initialVNode.type as Component
-    if (component.setup) {
-      instance.render = component.setup(instance.props, {
-        emit: instance.emit,
-      }) as InternalRenderFunction
-    }
-
-    setupRenderEffect(instance, initialVNode, container)
-  }
-
-  const updateComponent = (n1: VNode, n2: VNode) => {
-    const instance = (n2.component, n1.component)!
-    instance.next = n2
-    instance.update()
-  }
-
-  const setupRenderEffect = (
-    instance: ComponentInternalInstance,
-    initialVNode: VNode,
-    container: RendererElement
-  ) => {
-    const componentUpdateFn = () => {
-      const { render } = instance
-
-      if (!instance.isMounted) {
-        const subTree = (instance.subTree = normalizeVNode(render()))
-        patch(null, subTree, container)
-        initialVNode.el = subTree.el
-        instance.isMounted = true
-      } else {
-        let { next, vnode } = instance
-
-        if (next) {
-          next.el = vnode.el
-          next.component = instance
-          instance.vnode = next
-          instance.next = null
-          updateProps(instance, next.props)
-        } else {
-          next = vnode
-        }
-
-        const prevTree = instance.subTree
-        const nextTree = normalizeVNode(render())
-        instance.subTree = nextTree
-
-        patch(prevTree, nextTree, hostParentNode(prevTree.el!)!)
-        next.el = nextTree.el
-      }
-    }
-
-    const effect = (instance.effect = new ReactiveEffect(componentUpdateFn))
-    const update = (instance.update = () => effect.run())
-    update()
   }
 
   const processElement = (
@@ -207,6 +133,70 @@ export function createRenderer(options: RendererOptions) {
         hostSetText(el, n2.children as string)
       }
     }
+  }
+
+  const processComponent = (
+    n1: VNode | null,
+    n2: VNode,
+    container: RendererElement
+  ) => {
+    if (n1 == null) {
+      mountComponent(n2, container)
+    } else {
+      updateComponent(n1, n2)
+    }
+  }
+
+  const mountComponent = (initialVNode: VNode, container: RendererElement) => {
+    // prettier-ignore
+    const instance: ComponentInternalInstance = (initialVNode.component = createComponentInstance(initialVNode));
+    setupComponent(instance)
+    setupRenderEffect(instance, initialVNode, container)
+  }
+
+  const setupRenderEffect = (
+    instance: ComponentInternalInstance,
+    initialVNode: VNode,
+    container: RendererElement
+  ) => {
+    const componentUpdateFn = () => {
+      const { render } = instance
+      if (!instance.isMounted) {
+        const subTree = (instance.subTree = normalizeVNode(render()))
+        patch(null, subTree, container)
+        initialVNode.el = subTree.el
+        instance.isMounted = true
+      } else {
+        let { next, vnode } = instance
+
+        if (next) {
+          next.el = vnode.el
+          next.component = instance
+          instance.vnode = next
+          instance.next = null
+          updateProps(instance, next.props)
+        } else {
+          next = vnode
+        }
+
+        const prevTree = instance.subTree
+        const nextTree = normalizeVNode(render())
+        instance.subTree = nextTree
+
+        patch(prevTree, nextTree, hostParentNode(prevTree.el!)!)
+        next.el = nextTree.el
+      }
+    }
+
+    const effect = (instance.effect = new ReactiveEffect(componentUpdateFn))
+    const update = (instance.update = () => effect.run())
+    update()
+  }
+
+  const updateComponent = (n1: VNode, n2: VNode) => {
+    const instance = (n2.component = n1.component)!
+    instance.next = n2
+    instance.update()
   }
 
   const render: RootRenderFunction = (rootComponent, container) => {

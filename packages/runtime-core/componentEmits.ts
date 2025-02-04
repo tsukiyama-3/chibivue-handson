@@ -1,11 +1,11 @@
-import { camelize, toHandlerKey } from '../shared/general'
-import { ComponentInternalInstance } from './component'
+import { camelize, toHandlerKey } from '../shared'
+import type { ComponentInternalInstance } from './component'
 
-export const emit = (
+export function emit(
   instance: ComponentInternalInstance,
   event: string,
   ...rawArgs: any[]
-) => {
+) {
   const props = instance.vnode.props || {}
   let args = rawArgs
 

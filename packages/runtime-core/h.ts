@@ -1,9 +1,9 @@
-import { VNode, VNodeProps, createVNode } from './vnode'
+import { type VNode, type VNodeProps, createVNode } from './vnode'
 
-export const h = (
+export function h(
   type: string | object,
   props: VNodeProps,
   children: (VNode | string)[]
-) => {
+) {
   return createVNode(type, props, children)
 }
